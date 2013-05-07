@@ -18,6 +18,8 @@ namespace ODRefreshControl
         UIScrollView scrollView;
         UIEdgeInsets originalContentInset;
 
+        public Action Action { get; set; }
+
         public bool Refreshing { get { return _refreshing; } }
 
         public UIColor ActivityIndicatorViewColor
@@ -95,7 +97,8 @@ namespace ODRefreshControl
 
             this.AutoresizingMask = UIViewAutoresizing.FlexibleWidth;
             this.scrollView.AddSubview(this);
-            //scrollView.AddObserver
+            this.scrollView.AddObserver(this, new NSString("contentOffset"), NSKeyValueObservingOptions.New, IntPtr.Zero);
+            this.scrollView.AddObserver(this, new NSString("contentInset"), NSKeyValueObservingOptions.New, IntPtr.Zero);
 
             if (activity == null)
                 activity = new UIActivityIndicatorView(UIActivityIndicatorViewStyle.Gray);
@@ -140,8 +143,12 @@ namespace ODRefreshControl
             if (disposing)
             {
                 // remove observers
-
-                this.scrollView = null;
+                if (this.scrollView != null)
+                {
+                    this.scrollView.RemoveObserver(this, new NSString("contentOffset"));
+                    this.scrollView.RemoveObserver(this, new NSString("contentInset"));
+                    this.scrollView = null;
+                }
             }
             base.Dispose(disposing);
         }
@@ -169,7 +176,6 @@ namespace ODRefreshControl
                 if (offset != 0)
                 {
                     // keep thing pinned at the top
-
                     CATransaction.Begin();
                     CATransaction.SetValueForKey(NSNumber.FromBoolean(true), CATransaction.DisableActionsKey);
                     _shapeLayer.Position = new PointF(0, kMaxDistance + offset + kOpenedViewHeight);
@@ -251,13 +257,15 @@ namespace ODRefreshControl
                 if (offset > 0 && _lastOffset > offset  && !this.scrollView.Tracking)
                 {
                     // if we are scrolling too fast, don't draw, and don't trigger unless the scrollView bounced back
-                    _canRefresh = false;
-                    dontDraw = true;
+
+                    // removed behavior Heath 
+                    //_canRefresh = false;
+                    //dontDraw = true;
                 }
                 if (dontDraw)
                 {
                     _shapeLayer.Path = null;
-                    _shapeLayer.ShadowPath = null;
+                    _shapeLayer.ShadowPath = new CGPath(IntPtr.Zero);
                     _arrowLayer.Path = null;
                     _highlightLayer.Path = null;
                     _lastOffset = offset;
@@ -276,11 +284,225 @@ namespace ODRefreshControl
             float distance = (float)Math.Min(kMaxDistance, (float)Math.Abs(verticalShift));
             float percentage = 1 - (distance / kMaxDistance);
 
-            float currentTopPadding = Math.
+            float currentTopPadding = lerp(kMinTopPadding, kMaxTopPadding, percentage);
+            float currentTopRadius = lerp(kMinTopRadius, kMaxTopRadius, percentage);
+            float currentBottomRadius = lerp(kMinBottomRadius, kMaxBottomRadius, percentage);
+            float currentBottomPadding = lerp(kMinBottomPadding, kMaxBottomPadding, percentage);
 
+            PointF bottomOrigin = new PointF((float)Math.Floor(this.Bounds.Size.Width / 2), this.Bounds.Size.Height - currentBottomPadding - currentBottomRadius);
+            PointF topOrigin = PointF.Empty;
+            if (distance == 0)
+            {
+                topOrigin = new PointF((float)Math.Floor(this.Bounds.Size.Width / 2), bottomOrigin.Y);
+            }
+            else
+            {
+                topOrigin = new PointF((float)Math.Floor(this.Bounds.Size.Width / 2), this.Bounds.Size.Height + offset + currentTopPadding + currentTopRadius);
+                if (percentage == 0)
+                {
+                    bottomOrigin.Y -= (float)Math.Abs(verticalShift) - kMaxDistance;
+                    triggered = true;
+                }
+            }
 
+            // top semicircle
+            path.AddArc(topOrigin.X, topOrigin.Y, currentTopRadius, 0, (float)Math.PI, true);
+
+            // left curve
+            PointF leftCp1 = new PointF(lerp((topOrigin.X - currentTopRadius), (bottomOrigin.X - currentBottomRadius), 0.1f), lerp(topOrigin.Y, bottomOrigin.Y, 0.2f));
+            PointF leftCp2 = new PointF(lerp((topOrigin.X - currentTopRadius), (bottomOrigin.X - currentBottomRadius), 0.9f), lerp(topOrigin.Y, bottomOrigin.Y, 0.2f));
+            PointF leftDestination = new PointF(bottomOrigin.X - currentBottomRadius, bottomOrigin.Y);
+            
+            path.AddCurveToPoint(leftCp1, leftCp2, leftDestination);
+
+            // bottom semicircle
+            path.AddArc(bottomOrigin.X, bottomOrigin.Y, currentBottomRadius, (float)Math.PI, 0, true);
+            
+            // right curve
+            PointF rightCp2 = new PointF(lerp((topOrigin.X + currentTopRadius), (bottomOrigin.X + currentBottomRadius), 0.1f), lerp(topOrigin.Y, bottomOrigin.Y, 0.2f));
+            PointF rightCp1 = new PointF(lerp((topOrigin.X + currentTopRadius), (bottomOrigin.X + currentBottomRadius), 0.9f), lerp(topOrigin.Y, bottomOrigin.Y, 0.2f));
+            PointF rightDestination = new PointF(bottomOrigin.X + currentTopRadius, topOrigin.Y);
+            
+            path.AddCurveToPoint (rightCp1, rightCp2, rightDestination);
+            path.CloseSubpath();
+
+            if (!triggered) // line 309
+            {
+                // set paths
+                _shapeLayer.Path = path;
+                _shapeLayer.ShadowPath = path;
+
+                // add the arrow shape
+                float currentArrowSize = lerp(kMinArrowSize, kMaxArrowSize, percentage);
+                float currentArrowRadius = lerp(kMinArrowRadius, kMaxArrowRadius, percentage);
+                float arrowBigRadius = currentArrowRadius + (currentArrowSize / 2);
+                float arrowSmallRadius = currentArrowRadius - (currentArrowSize / 2);
+                CGPath arrowPath = new CGPath();
+                /*
+                arrowPath.AddArc(topOrigin.X, topOrigin.Y, arrowBigRadius, 0, 3 * (float)Math.PI, false);
+                arrowPath.AddLineToPoint(topOrigin.X, topOrigin.Y - arrowBigRadius - currentArrowSize);
+                arrowPath.AddLineToPoint(topOrigin.X + (2 * currentArrowSize), topOrigin.Y - arrowBigRadius + (currentArrowSize / 2));
+                arrowPath.AddLineToPoint(topOrigin.X, topOrigin.Y - arrowBigRadius + (2 * currentArrowSize));
+                arrowPath.AddLineToPoint(topOrigin.X, topOrigin.Y - arrowBigRadius + currentArrowSize);
+                arrowPath.AddArc(topOrigin.X, topOrigin.Y, arrowSmallRadius, 3 * (float)Math.PI, 0, true);
+                */
+                arrowPath.AddArc (topOrigin.X, topOrigin.Y, arrowBigRadius, 0, 3 * (float) Math.PI / 2.0f, false);
+                arrowPath.AddLineToPoint (topOrigin.X, topOrigin.Y - arrowBigRadius - currentArrowSize);
+                arrowPath.AddLineToPoint (topOrigin.X + (2 * currentArrowSize), topOrigin.Y - arrowBigRadius + (currentArrowSize / 2.0f));
+                arrowPath.AddLineToPoint (topOrigin.X, topOrigin.Y - arrowBigRadius + (2 * currentArrowSize));
+                arrowPath.AddLineToPoint (topOrigin.X, topOrigin.Y - arrowBigRadius + currentArrowSize);
+                arrowPath.AddArc (topOrigin.X, topOrigin.Y, arrowSmallRadius, 3 * (float) Math.PI / 2.0f, 0, true);
+
+                arrowPath.CloseSubpath();
+                _arrowLayer.Path = arrowPath;
+                _arrowLayer.FillRule = CAShapeLayer.FillRuleEvenOdd;
+                arrowPath.Dispose();
+
+                // add the highlight shape
+                CGPath highlightPath = new CGPath();
+                highlightPath.AddArc(topOrigin.X, topOrigin.Y, currentTopRadius, 0, (float)Math.PI, true);
+                highlightPath.AddArc(topOrigin.X, topOrigin.Y + 1.25f, currentTopRadius, (float)Math.PI, 0, false);
+
+                _highlightLayer.Path = highlightPath;
+                _highlightLayer.FillRule = CAShapeLayer.FillRuleNonZero;
+                highlightPath.Dispose();
+            }
+            else
+            {
+                // start the shape disappearance animation
+                float radius = lerp(kMinBottomRadius, kMaxBottomRadius, 0.2f);
+                CABasicAnimation pathMorph = CABasicAnimation.FromKeyPath("path");
+                pathMorph.Duration = 0.15f;
+                pathMorph.FillMode = CAFillMode.Forwards;
+                pathMorph.RemovedOnCompletion = false;
+
+                CGPath toPath = new CGPath();
+                toPath.AddArc(topOrigin.X, topOrigin.Y, radius, 0, (float)Math.PI, true);
+                toPath.AddCurveToPoint(topOrigin.X - radius, topOrigin.Y, topOrigin.X - radius, topOrigin.Y, topOrigin.X - radius, topOrigin.Y);
+                toPath.AddArc(topOrigin.X, topOrigin.Y, radius, (float)Math.PI, 0, true);
+                toPath.AddCurveToPoint(topOrigin.X + radius, topOrigin.Y, topOrigin.X + radius, topOrigin.Y, topOrigin.X + radius, topOrigin.Y);
+                toPath.CloseSubpath();
+
+                pathMorph.To = new NSValue(toPath.Handle);
+                _shapeLayer.AddAnimation(pathMorph, null);
+                
+                CABasicAnimation shadowPathMorph = CABasicAnimation.FromKeyPath("shadowPath");
+                shadowPathMorph.Duration = 0.15f;
+                shadowPathMorph.FillMode = CAFillMode.Forwards;
+                shadowPathMorph.RemovedOnCompletion = false;
+                shadowPathMorph.To = new NSValue(toPath.Handle);
+                
+                _shapeLayer.AddAnimation(shadowPathMorph, null);
+                toPath.Dispose();
+                
+                CABasicAnimation shapeAlphaAnimation = CABasicAnimation.FromKeyPath("opacity");
+                shapeAlphaAnimation.Duration = 0.1f;
+                shapeAlphaAnimation.BeginTime = CAAnimation.CurrentMediaTime() + 0.1f;
+                shapeAlphaAnimation.To = new NSNumber(0);
+                shapeAlphaAnimation.FillMode = CAFillMode.Forwards;
+                shapeAlphaAnimation.RemovedOnCompletion = false;
+                _shapeLayer.AddAnimation(shapeAlphaAnimation, null);
+                
+                CABasicAnimation alphaAnimation = CABasicAnimation.FromKeyPath("opacity");
+                alphaAnimation.Duration = 0.1f;
+                alphaAnimation.To = new NSNumber (0);
+                alphaAnimation.FillMode = CAFillMode.Forwards;
+                alphaAnimation.RemovedOnCompletion = false;
+                
+                _arrowLayer.AddAnimation(alphaAnimation, null);
+                _highlightLayer.AddAnimation(alphaAnimation, null);
+                
+                CATransaction.Begin();
+                CATransaction.DisableActions = true;
+                activity.Layer.Transform = CATransform3D.MakeScale(0.1f, 0.1f, 1f);
+                CATransaction.Commit();
+                
+                UIView.Animate (0.2f, 0.15f, UIViewAnimationOptions.CurveLinear, () => {
+                    activity.Alpha = 1;
+                    activity.Layer.Transform = CATransform3D.MakeScale(1, 1, 1);
+                }, null);
+                
+                _refreshing = true;
+                _canRefresh = false;
+                this.SendActionForControlEvents(UIControlEvent.ValueChanged);
+
+                if (this.Action != null)
+                    this.Action();
+            }
+            path.Dispose();
         }
 
+        public void BeginRefreshing()
+        {
+            if (_refreshing)
+                return;
+
+            CABasicAnimation alphaAnimation = CABasicAnimation.FromKeyPath("opacity");
+            alphaAnimation.Duration = 0.0001f;
+            alphaAnimation.To = new NSNumber(0);
+            alphaAnimation.FillMode = CAFillMode.Forwards;
+            alphaAnimation.RemovedOnCompletion = false;
+            _shapeLayer.AddAnimation(alphaAnimation, null);
+            _arrowLayer.AddAnimation(alphaAnimation, null);
+            _highlightLayer.AddAnimation(alphaAnimation, null);
+
+            this.activity.Center = new PointF((float)Math.Floor(this.Frame.Size.Width / 2), (float)Math.Min(this.Frame.Size.Height + Math.Floor(kOpenedViewHeight / 2), this.Frame.Size.Height - kOpenedViewHeight / 2));
+            this.activity.Alpha = 1;
+            this.activity.Layer.Transform = CATransform3D.MakeScale (1, 1, 1);
+            
+            PointF offset = this.scrollView.ContentOffset;
+            _ignoreInset = true;
+            this.scrollView.ContentInset = new UIEdgeInsets(kOpenedViewHeight + this.originalContentInset.Top, this.originalContentInset.Left, this.originalContentInset.Bottom, this.originalContentInset.Right);
+            _ignoreInset = false;
+
+            offset.Y -= kMaxDistance;
+            this.scrollView.SetContentOffset(offset, false);
+
+            _refreshing = true;
+            _canRefresh = false;
+
+            if (this.Action != null)
+                this.Action();
+        }
+
+        public void EndRefreshing()
+        {
+            if (!_refreshing)
+                return;
+
+            _refreshing = false;
+            // create a temporary retain-cycle, so the scrollview won't be released
+            // halfway through the end animation.
+            // this allows for the refresh control to clean up the observer,
+            // in the case the scrollView is released while the animation is running
+
+            UIView.Animate (0.4, () => {
+                _ignoreInset = true;
+                this.scrollView.ContentInset = originalContentInset;
+                _ignoreInset = false;
+                activity.Alpha = 0;
+                activity.Layer.Transform = CATransform3D.MakeScale(0.1f, 0.1f, 1);
+            }, () => {
+                _shapeLayer.RemoveAllAnimations();
+                _shapeLayer.Path = null;
+                _shapeLayer.ShadowPath = new CGPath(IntPtr.Zero);
+                _shapeLayer.Position = PointF.Empty;
+                _arrowLayer.RemoveAllAnimations();
+                _arrowLayer.Path = null;
+                _highlightLayer.RemoveAllAnimations();
+                _highlightLayer.Path = null;
+
+                // we need to use the scrollview somehow in the end block,
+                // or it'll get released in the animation block.  ?? not true for xamarin.ios ??
+                _ignoreInset = true;
+                this.scrollView.ContentInset = originalContentInset;
+                _ignoreInset = false;
+            });
+        }
+
+        static float lerp (float a, float b, float p)
+        {
+            return a + (b - a) * p;
+        }
     }
 }
-

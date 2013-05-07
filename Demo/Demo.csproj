@@ -90,6 +90,13 @@
   <ItemGroup>
     <Compile Include="Main.cs" />
     <Compile Include="AppDelegate.cs" />
+    <Compile Include="TestViewController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\ODRefreshControl\ODRefreshControl.csproj">
+      <Project>{079C0271-F6E8-44D2-8EA4-7FAD910F1836}</Project>
+      <Name>ODRefreshControl</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

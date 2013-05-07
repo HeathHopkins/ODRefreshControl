@@ -51,6 +51,6 @@ Global
 		{C1F96F33-4165-475C-9543-59A4545E156C}.Release|iPhoneSimulator.Build.0 = Release|iPhoneSimulator
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = ODRefreshControl\ODRefreshControl.csproj
+		StartupItem = Demo\Demo.csproj
 	EndGlobalSection
 EndGlobal
