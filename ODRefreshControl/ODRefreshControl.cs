@@ -226,9 +226,59 @@ namespace ODRefreshControl
             else
             {
                 // check if we can trigger a new refresh and if we can draw the control
-                bool dontDraw = false;
-                // line 230
+                bool dontDraw = false;  // line 230
+                if (!_canRefresh)
+                {
+                    if (offset >= 0)
+                    {
+                        // we can refresh again after the control is scrolled out of view
+                        _canRefresh = true;
+                        _didSetInset = false;
+                    }
+                    else
+                    {
+                        dontDraw = true;
+                    }
+                }
+                else
+                {
+                    if (offset >= 0)
+                    {
+                        // don't draw if the control is not visible
+                        dontDraw = true;
+                    }
+                }
+                if (offset > 0 && _lastOffset > offset  && !this.scrollView.Tracking)
+                {
+                    // if we are scrolling too fast, don't draw, and don't trigger unless the scrollView bounced back
+                    _canRefresh = false;
+                    dontDraw = true;
+                }
+                if (dontDraw)
+                {
+                    _shapeLayer.Path = null;
+                    _shapeLayer.ShadowPath = null;
+                    _arrowLayer.Path = null;
+                    _highlightLayer.Path = null;
+                    _lastOffset = offset;
+                    return;
+                }
             }
+
+            _lastOffset = offset;  // line 260
+
+            bool triggered = false;
+
+            CGPath path = new CGPath();
+
+            // calculate some useful points and values
+            float verticalShift = (float)Math.Max(0, -1 * ((kMaxTopRadius + kMaxBottomRadius + kMaxTopPadding + kMaxBottomPadding) + offset));
+            float distance = (float)Math.Min(kMaxDistance, (float)Math.Abs(verticalShift));
+            float percentage = 1 - (distance / kMaxDistance);
+
+            float currentTopPadding = Math.
+
+
         }
 
     }
