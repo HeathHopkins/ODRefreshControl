@@ -1,11 +1,9 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="MonoDevelop.IPhone.IPhoneSimulatorTarget.IPhone.5.0" />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
   <MonoDevelop.Ide.Workbench ActiveDocument="ODRefreshControl/ODRefreshControl.cs">
     <Files>
-      <File FileName="ODRefreshControl/ODRefreshControl.cs" Line="362" Column="25" />
-      <File FileName="ODRefreshControl/ODRefreshControlOLD.cs" Line="1" Column="3" />
-      <File FileName="Demo/AppDelegate.cs" Line="32" Column="66" />
-      <File FileName="Demo/TestViewController.cs" Line="46" Column="13" />
+      <File FileName="Demo/TestViewController.cs" Line="43" Column="15" />
+      <File FileName="ODRefreshControl/ODRefreshControl.cs" Line="11" Column="41" />
     </Files>
     <Pads>
       <Pad Id="ProjectPad">
