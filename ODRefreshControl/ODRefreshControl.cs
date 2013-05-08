@@ -45,7 +45,7 @@ namespace ODRefreshControl
             {
                 if (this.activity != null)
                     return this.activity.ActivityIndicatorViewStyle;
-                return (UIActivityIndicatorViewStyle)0;
+                return UIActivityIndicatorViewStyle.Gray;
             }
             set
             {
