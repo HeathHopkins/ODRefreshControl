@@ -38,11 +38,17 @@ namespace Demo
             view.AddSubview(tableview);
 
             refreshControl = new ODRefreshControl.ODRefreshControl(tableview);
+
+            refreshControl.TintColor = UIColor.Orange;
+            //refreshControl.ActivityIndicatorViewStyle = UIActivityIndicatorViewStyle.WhiteLarge;
+            refreshControl.ActivityIndicatorViewColor = UIColor.Gray;
+
             refreshControl.Action = delegate() 
             {
                 Task.Factory.StartNew(() => {
-                    Console.WriteLine("sleeping for 1.5)");
-                    System.Threading.Thread.Sleep(1500);
+                    Console.WriteLine("was manually started: " + refreshControl.WasManuallyStarted.ToString());
+                    Console.WriteLine("sleeping for 2)");
+                    System.Threading.Thread.Sleep(2000);
                 }).ContinueWith(t => {
                     Console.WriteLine("done");
                     refreshControl.EndRefreshing();
@@ -56,7 +62,7 @@ namespace Demo
         public override void ViewDidAppear(bool animated)
         {
             base.ViewDidAppear(animated);
-            refreshControl.BeginRefreshing();
+            //refreshControl.BeginRefreshing();
             //Console.WriteLine("refreshing: " + refreshControl.IsRefreshing.ToString());
         }
 
