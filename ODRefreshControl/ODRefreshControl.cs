@@ -21,6 +21,7 @@ namespace ODRefreshControl
         public Action Action { get; set; }
 
         public bool Refreshing { get { return _refreshing; } }
+        public bool WasManuallyStarted { get; private set; }
 
         public UIColor ActivityIndicatorViewColor
         { 
@@ -461,6 +462,8 @@ namespace ODRefreshControl
             _refreshing = true;
             _canRefresh = false;
 
+            this.WasManuallyStarted = true;
+
             if (this.Action != null)
                 this.Action();
         }
@@ -497,6 +500,8 @@ namespace ODRefreshControl
                 _ignoreInset = true;
                 this.scrollView.ContentInset = originalContentInset;
                 _ignoreInset = false;
+
+                this.WasManuallyStarted = false;
             });
         }
 
