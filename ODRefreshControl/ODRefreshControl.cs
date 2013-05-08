@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Collections.Generic;
 
 using MonoTouch.UIKit;
 using MonoTouch.Foundation;
